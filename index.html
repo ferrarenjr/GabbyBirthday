@@ -53,7 +53,7 @@ button{font:inherit}
 @keyframes popin{0%{transform:scale(.55) translateY(8%);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
 
 .sp{
-  position:absolute; height:auto; pointer-events:none; transform-origin:50% 100%; will-change:transform;
+  position:absolute; height:auto; pointer-events:none; transform-origin:50% 100%;
   animation-duration:var(--t,2s); animation-delay:var(--d,0s); animation-iteration-count:infinite; animation-timing-function:ease-in-out;
 }
 .a-hop{animation-name:hop}   .a-sway{animation-name:sway}  .a-peek{animation-name:peek}
@@ -112,7 +112,7 @@ button{font:inherit}
 #fog .blob{
   position:absolute; width:110%; aspect-ratio:1; border-radius:50%;
   background:radial-gradient(circle, rgba(255,255,255,.97) 0%, rgba(255,240,249,.78) 38%, rgba(255,255,255,0) 70%);
-  animation:drift 7s ease-in-out infinite alternate; will-change:transform;
+  animation:drift 7s ease-in-out infinite alternate; 
 }
 #fog .blob:nth-child(2){left:-40%; top:-15%; animation-duration:8s}
 #fog .blob:nth-child(3){right:-45%; top:5%; animation-duration:6.5s; animation-delay:-2s}
@@ -364,7 +364,15 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const env=$('#env'), vid=$('#vid'), fog=$('#fog'), inv=$('#s-inv'), skip=$('#skip');
 const stages = { env:$('#s-env'), vid:$('#s-vid'), inv:inv };
-function show(k){ for(const key in stages) stages[key].classList.toggle('on', key===k); if(typeof muteBtn!=='undefined') muteBtn.classList.toggle('show', k==='inv' && !!MUSIC); }
+function show(k){
+  for(const key in stages){
+    const el = stages[key], on = key===k;
+    if(on){ el.style.display=''; void el.offsetWidth; }
+    el.classList.toggle('on', on);
+    if(!on) setTimeout(()=>{ if(!el.classList.contains('on')) el.style.display='none'; }, 700);
+  }
+  if(typeof muteBtn!=='undefined') muteBtn.classList.toggle('show', k==='inv' && !!MUSIC);
+}
 
 /* ---------- build invitation content from CFG ---------- */
 (function build(){
@@ -577,6 +585,7 @@ function startFog(){
   fog.classList.remove('out'); void fog.offsetWidth; fog.classList.add('in');
   later(()=>{                         // fog is solid: swap scenes unseen
     try{ vid.pause(); }catch(e){}
+    vid.removeAttribute('src'); vid.removeAttribute('poster'); vid.load();
     inv.scrollTop=0; inv.style.scrollBehavior='auto';
     show('inv'); armReveals(); fitName(); musicStart();
     inv.classList.remove('reveal'); void inv.offsetWidth; inv.classList.add('reveal');
@@ -593,7 +602,7 @@ skip.addEventListener('click', startFog);
 $('#replay').addEventListener('click', () => {
   timers.forEach(clearTimeout); timers=[]; started=false; fogStarted=false; musicStop();
   fog.className=''; env.classList.remove('opening','pop'); void env.offsetWidth; env.classList.add('pop');
-  inv.classList.remove('reveal'); show('env');
+  inv.classList.remove('reveal'); vid.src = 'assets/intro.mp4'; vid.poster = 'assets/poster.jpg'; vid.load(); show('env');
 });
 
 /* ---------- start: wait for art, then pop the envelope in ---------- */
