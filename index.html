@@ -129,7 +129,7 @@ button{font:inherit}
 /* ---------- 3. invitation ---------- */
 #s-inv{overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scroll-behavior:smooth; background:#fee4f4}
 #s-inv.reveal .page{animation:unveil 2.8s cubic-bezier(.2,.6,.2,1) both}
-@keyframes unveil{from{filter:blur(16px) brightness(1.25); transform:scale(1.05); opacity:.2}to{filter:none; transform:none; opacity:1}}
+@keyframes unveil{from{transform:scale(1.04); opacity:.2}to{transform:none; opacity:1}}
 .page{position:relative}
 .gingham{
   background-color:#fee4f4;
@@ -137,15 +137,16 @@ button{font:inherit}
   background-size:38px 38px;
 }
 .hero{position:relative; line-height:0}
-.hero-art{position:relative; line-height:0;
-  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent); mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent)}
+  .hero-art{position:relative; line-height:0}
+  .hero-art>img.bgart,.hero-art>img.hkbig{
+    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent); mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent)}
 .hero-art>img.bgart{width:100%; height:auto; display:block}
 .amb{position:absolute; inset:0; overflow:hidden; pointer-events:none}
-.cf{position:absolute; top:-5%; opacity:0; animation:fall linear infinite; will-change:transform}
+.cf{position:absolute; top:-5%; opacity:0; animation:fall linear infinite;}
 @keyframes fall{
   0%{transform:translate3d(0,0,0) rotate(0) rotateX(0); opacity:0}
   8%{opacity:1}
-  100%{transform:translate3d(var(--sx,20px),var(--fy,560px),0) rotate(var(--rz,540deg)) rotateX(720deg); opacity:.95}}
+  100%{transform:translate3d(var(--sx,20px),var(--fy,560px),0) rotate(var(--rz,540deg)); opacity:.95}}
 #confetti{position:absolute; inset:0; z-index:90; pointer-events:none; overflow:hidden}
 #confetti .cf{top:-30px; animation-iteration-count:1; animation-fill-mode:forwards; animation-timing-function:cubic-bezier(.3,.1,.5,1)}
 @keyframes breathe{
@@ -444,7 +445,7 @@ function mkConfetti(){
 }
 (function ambient(){
   const box=$('#amb'), h=document.querySelector('.hero').clientHeight||300;
-  for(let i=0;i<26;i++){
+  for(let i=0;i<14;i++){
     const c=mkConfetti(); c.style.setProperty('--fy',(h*1.05)+'px');
     c.style.animationDuration=(4+Math.random()*4)+'s'; c.style.animationDelay=(-Math.random()*8)+'s'; box.appendChild(c);
   }
