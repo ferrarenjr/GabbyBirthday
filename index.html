@@ -258,7 +258,12 @@ button{font:inherit}
 
   <!-- 2. VIDEO -->
   <section class="stage" id="s-vid" aria-label="Intro video">
-    <video id="vid" src="assets/intro.mp4" poster="assets/poster.jpg" playsinline webkit-playsinline preload="auto"></video>
+    <video id="vid"
+  src="assets/intro.mp4"
+  poster="assets/poster.jpg"
+  playsinline
+  preload="auto"></video>
+  <audio id="intro-audio" src="assets/Intro Audio.mp3" preload="auto"></audio>
     <button id="skip" type="button">Skip ›</button>
   </section>
 
@@ -344,7 +349,7 @@ const DEFAULTS = {
   music: { src: "assets/Converted Audio File.mp3", volume: 0.5 },
   nameSize: 80,
   galleryTitle: "The Birthday Girl",
-  gallerySub: "Her prettiest look",
+  gallerySub: "",
   photos: [               
      { src: "assets/IMG_1598.JPG", caption: "" },
      { src: "assets/IMG_1599.JPG", caption: "" },
@@ -518,20 +523,52 @@ muteBtn.addEventListener('click', () => {
 /* ---------- the flow ---------- */
 let started=false, fogStarted=false, timers=[];
 const later=(fn,ms)=>{ const t=setTimeout(fn,ms); timers.push(t); return t; };
+function openEnvelope() {
+    if (typeof started !== 'undefined' && started) return;
+    started = true;
 
-function openEnvelope(){
-  if(started) return; started=true;
-  env.classList.add('opening');
-  musicPrime();
-  // must start inside the tap handler so sound is allowed
-  try{ vid.currentTime=0; }catch(e){}
-  vid.muted=true;
-  const p=vid.play();
-  if(p && p.catch) p.catch(()=>{ vid.muted=true; return vid.play(); }).catch(()=>{ later(startFog,600); });
-  later(()=>show('vid'),500);
-  later(()=>skip.classList.add('show'),2200);
-  later(()=>{ if(!fogStarted) startFog(); }, 16000);   // safety net
+    // 1. Play audio INSTANTLY at the top to satisfy browser user-gesture policy
+    const audio = document.getElementById('intro-audio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(err => console.log("Audio play blocked:", err));
+    }
+
+    // 2. Get video and envelope elements
+    const vid = document.getElementById('vid');
+    const env = document.getElementById('env');
+
+    if (env) env.classList.add('opening');
+    if (typeof musicPrime === 'function') musicPrime();
+
+    // 3. Play video silently to ensure reliable playback without codec blocks
+    if (vid) {
+        try { vid.currentTime = 0; } catch(e) {}
+        vid.muted = true; // Muted video guarantees playback across all browsers
+        vid.play().catch(err => console.log("Video play blocked:", err));
+
+        // Stop audio when video ends
+        vid.onended = function() {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        };
+    }
+
+    // 4. Timers and UI states
+    if (typeof later === 'function') {
+        later(() => { if (typeof show === 'function') show('vid'); }, 500);
+        const skip = document.getElementById('skip');
+        if (skip) later(() => skip.classList.add('show'), 2200);
+        later(() => { 
+            if (typeof fogStarted === 'undefined' || !fogStarted) { 
+                if (typeof startFog === 'function') startFog(); 
+            } 
+        }, 16000);
+    }
 }
+
 function startFog(){
   if(fogStarted) return; fogStarted=true;
   skip.classList.remove('show');
