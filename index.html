@@ -128,7 +128,7 @@ button{font:inherit}
 
 /* ---------- 3. invitation ---------- */
 #s-inv{overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scroll-behavior:smooth; background:#fee4f4}
-#s-inv.reveal .page{animation:unveil 2.8s cubic-bezier(.2,.6,.2,1) both}
+#s-inv.reveal .hero,#s-inv.reveal .details,#s-inv.reveal .row{animation:unveil 2.8s cubic-bezier(.2,.6,.2,1) both}
 @keyframes unveil{from{transform:scale(1.04); opacity:.2}to{transform:none; opacity:1}}
 .page{position:relative}
 .gingham{
@@ -187,9 +187,27 @@ button{font:inherit}
 .btn.alt{background:#fff; color:var(--pink); box-shadow:0 4px 0 var(--pink-3)}
 .btn.alt:active{box-shadow:0 1px 0 var(--pink-3)}
 .rsvp{margin:16px 0 0; font-weight:600; font-size:15px; color:var(--ink)}
-.scroll{margin:26px auto 0; display:flex; flex-direction:column; align-items:center; gap:2px; font-weight:600; font-size:14px; color:var(--pink); transition:opacity .4s}
-.scroll i{font-style:normal; font-size:22px; animation:nudge 1.4s ease-in-out infinite}
-@keyframes nudge{50%{transform:translateY(6px)}}
+/* ---------- gentle "scroll down" hint ---------- */
+#scrollhint{
+  position:absolute; left:50%; bottom:calc(14px + env(safe-area-inset-bottom)); z-index:55;
+  transform:translate(-50%,10px); opacity:0; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center;
+  padding:8px 18px 6px; border:0; border-radius:999px; cursor:pointer;
+  font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--pink);
+  background:rgba(255,255,255,.82); box-shadow:0 4px 14px rgba(168,52,111,.22), inset 0 0 0 2px #fff;
+  transition:opacity .7s ease, transform .7s ease; -webkit-tap-highlight-color:transparent;
+}
+#scrollhint.show{opacity:1; transform:translate(-50%,0); pointer-events:auto}
+#scrollhint .chev{position:relative; display:block; width:16px; height:20px; margin-top:3px}
+#scrollhint .chev i{
+  position:absolute; left:50%; width:11px; height:11px; margin-left:-5.5px; border-radius:2px;
+  border-right:3px solid var(--pink); border-bottom:3px solid var(--pink); transform:rotate(45deg);
+  opacity:0; animation:chev 1.8s ease-in-out infinite;
+}
+#scrollhint .chev i:nth-child(1){top:0}
+#scrollhint .chev i:nth-child(2){top:8px; animation-delay:.25s}
+#scrollhint:not(.show) .chev i{animation-play-state:paused}
+@keyframes chev{0%{opacity:0; translate:0 -5px}40%{opacity:1}80%,100%{opacity:0; translate:0 5px}}
 .row{line-height:0; margin-top:6px}
 .row img{width:100%; height:auto; display:block}
 
@@ -227,7 +245,10 @@ button{font:inherit}
 #mute.off::after{content:""; position:absolute; width:26px; height:3px; border-radius:2px; background:var(--pink); transform:rotate(-45deg); box-shadow:0 0 0 2px rgba(255,255,255,.9)}
 @media (prefers-reduced-motion:reduce){
   .sp{animation-duration:calc(var(--t,2s) * 2.5)} .pt,.tw{display:none}
+  #scrollhint .chev i{animation:none; opacity:1}
 }
+/* lighter fog on phones (less for the GPU to draw) */
+@media (max-width:600px){ #fog .blob:nth-child(n+5){display:none} }
 </style>
 </head>
 <body>
@@ -294,7 +315,6 @@ button{font:inherit}
           <div class="info rv" id="info"></div>
           <div class="actions rv" id="actions"></div>
           <p class="rsvp rv" id="rsvp" hidden></p>
-          <div class="scroll rv" id="scrollcue"><span>Scroll for photos</span><i>↓</i></div>
         </div>
         <div class="row"><img src="assets/row.jpg" alt="" loading="lazy"></div>
       </div>
@@ -320,6 +340,7 @@ button{font:inherit}
 
   <audio id="bgm" loop preload="auto" playsinline></audio>
   <button id="mute" type="button" aria-label="Toggle music">♫</button>
+  <button id="scrollhint" type="button" aria-label="Scroll down"><span>Scroll down</span><span class="chev" aria-hidden="true"><i></i><i></i></span></button>
 
   <div id="confetti" aria-hidden="true"></div>
 
@@ -372,6 +393,7 @@ function show(k){
     if(!on) setTimeout(()=>{ if(!el.classList.contains('on')) el.style.display='none'; }, 700);
   }
   if(typeof muteBtn!=='undefined') muteBtn.classList.toggle('show', k==='inv' && !!MUSIC);
+  if(k!=='inv') hintReset();
 }
 
 /* ---------- build invitation content from CFG ---------- */
@@ -434,7 +456,7 @@ const days   = Math.round((toUTC(dayKey(start)) - toUTC(dayKey(new Date()))) / 8
     const f = document.createElement('figure'); f.className = 'polaroid'; f.style.margin = 0;
     f.style.setProperty('--r', (i%2 ? 2.2 : -2.2) + 'deg');
     f.innerHTML = p
-      ? `<img src="${esc(p.src)}" alt="${esc(p.caption||'Photo')}" loading="lazy">${p.caption?`<figcaption>${esc(p.caption)}</figcaption>`:''}`
+      ? `<img src="${esc(p.src)}" alt="${esc(p.caption||'Photo')}" loading="lazy" decoding="async">${p.caption?`<figcaption>${esc(p.caption)}</figcaption>`:''}`
       : `<div class="ph"><b>♡</b><span>Photo coming soon</span></div>`;
     wrap.appendChild(f);
   });
@@ -460,14 +482,15 @@ function mkConfetti(){
 }
 (function ambient(){
   const box=$('#amb'), h=document.querySelector('.hero').clientHeight||300;
-  for(let i=0;i<14;i++){
+  for(let i=0;i<(matchMedia('(max-width:600px)').matches?8:14);i++){
     const c=mkConfetti(); c.style.setProperty('--fy',(h*1.05)+'px');
     c.style.animationDuration=(4+Math.random()*4)+'s'; c.style.animationDelay=(-Math.random()*8)+'s'; box.appendChild(c);
   }
 })();
 function burst(){
   const box=$('#confetti'), H=box.clientHeight||800; box.innerHTML='';
-  for(let i=0;i<90;i++){
+  const N = matchMedia('(max-width:600px)').matches ? 45 : 90;
+  for(let i=0;i<N;i++){
     const c=mkConfetti(); c.style.setProperty('--fy',(H+60)+'px');
     c.style.animationName='fall'; c.style.animationDuration=(2.6+Math.random()*3)+'s'; c.style.animationDelay=(Math.random()*1.2)+'s';
     box.appendChild(c);
@@ -491,7 +514,12 @@ function fitName(){
 const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }),
   { root: inv, threshold: .12 });
 function armReveals(){ document.querySelectorAll('#s-inv .rv, #s-inv .polaroid').forEach(el => { el.classList.remove('in'); io.observe(el); }); }
-inv.addEventListener('scroll', () => { $('#scrollcue').style.opacity = inv.scrollTop > 60 ? 0 : 1; }, {passive:true});
+/* gentle "scroll down" hint: shows a moment after the invitation appears, fades once they scroll */
+const hint = $('#scrollhint'); let hintT=null, hintDone=false;
+function hintReset(){ clearTimeout(hintT); hintDone=false; hint.classList.remove('show'); }
+function hintArm(){ hintReset(); hintT=setTimeout(()=>{ if(!hintDone && inv.scrollTop<60) hint.classList.add('show'); }, 2500); }
+inv.addEventListener('scroll', () => { if(inv.scrollTop>60 && !hintDone){ hintDone=true; hint.classList.remove('show'); } }, {passive:true});
+hint.addEventListener('click', () => { hintDone=true; hint.classList.remove('show'); inv.scrollBy({top:Math.round(inv.clientHeight*.8), behavior:'smooth'}); });
 
 /* ---------- floating hearts on the envelope ---------- */
 (function particles(){
@@ -510,7 +538,7 @@ inv.addEventListener('scroll', () => { $('#scrollcue').style.opacity = inv.scrol
 /* ---------- music ---------- */
 const bgm=$('#bgm'), muteBtn=$('#mute');
 const MUSIC = CFG.music && CFG.music.src ? CFG.music : null;
-let musicOn=true, fadeT=null;
+let musicOn=true, fadeT=null, musicWanted=false;
 if(MUSIC){ bgm.src = MUSIC.src; }
 function musicPrime(){
   if(!MUSIC) return;
@@ -519,16 +547,26 @@ function musicPrime(){
 }
 function musicStart(){            // called when the invitation appears
   if(!MUSIC || !musicOn) return;
+  musicWanted=true;
   const target = Math.min(1, Math.max(0, MUSIC.volume ?? .5));
   bgm.muted=false; bgm.volume=0; const p=bgm.play(); if(p&&p.catch) p.catch(()=>{});
   clearInterval(fadeT); let v=0;
   fadeT=setInterval(()=>{ v=Math.min(target,v+target/30); bgm.volume=v; if(v>=target) clearInterval(fadeT); },100);
 }
-function musicStop(){ clearInterval(fadeT); try{ bgm.pause(); bgm.currentTime=0; }catch(e){} }
+function musicStop(){ musicWanted=false; clearInterval(fadeT); try{ bgm.pause(); bgm.currentTime=0; }catch(e){} }
 muteBtn.addEventListener('click', () => {
   musicOn=!musicOn; muteBtn.classList.toggle('off',!musicOn);
-  if(musicOn){ musicStart(); } else { clearInterval(fadeT); bgm.pause(); }
+  if(musicOn){ musicStart(); } else { musicWanted=false; clearInterval(fadeT); bgm.pause(); }
 });
+
+/* keep the music going on phones: calls, notifications or switching apps can pause it */
+function musicResume(){
+  if(musicWanted && !document.hidden && bgm.paused){ const p=bgm.play(); if(p&&p.catch) p.catch(()=>{}); }
+}
+bgm.addEventListener('pause', () => { setTimeout(musicResume, 400); });
+bgm.addEventListener('ended', () => { try{ bgm.currentTime=0; }catch(e){} musicResume(); });
+document.addEventListener('visibilitychange', () => { if(!document.hidden) musicResume(); });
+addEventListener('pageshow', musicResume);
 
 /* ---------- the flow ---------- */
 let started=false, fogStarted=false, timers=[];
@@ -584,13 +622,23 @@ function startFog(){
   skip.classList.remove('show');
   fog.classList.remove('out'); void fog.offsetWidth; fog.classList.add('in');
   later(()=>{                         // fog is solid: swap scenes unseen
+    // every step is guarded, so one hiccup on a phone can never leave the screen stuck on fog
     try{ vid.pause(); }catch(e){}
-    vid.removeAttribute('src'); vid.removeAttribute('poster'); vid.load();
-    inv.scrollTop=0; inv.style.scrollBehavior='auto';
-    show('inv'); armReveals(); fitName(); musicStart();
+    try{ vid.removeAttribute('src'); vid.removeAttribute('poster'); vid.load(); }catch(e){}
+    try{ inv.scrollTop=0; inv.style.scrollBehavior='auto'; }catch(e){}
+    try{ show('inv'); }catch(e){ console.log(e); }
+    try{ armReveals(); }catch(e){ console.log(e); }
+    try{ fitName(); }catch(e){ console.log(e); }
+    try{ musicStart(); }catch(e){ console.log(e); }
+    try{ hintArm(); }catch(e){ console.log(e); }
     inv.classList.remove('reveal'); void inv.offsetWidth; inv.classList.add('reveal');
-    later(()=>{ fog.classList.remove('in'); fog.classList.add('out'); inv.style.scrollBehavior=''; burst(); }, 450);
+    later(()=>{ fog.classList.remove('in'); fog.classList.add('out'); inv.style.scrollBehavior=''; try{ burst(); }catch(e){} }, 450);
   }, 1400);
+  // safety net: whatever happens, clear the fog and show the invitation
+  later(()=>{
+    if(!inv.classList.contains('on')){ try{ show('inv'); }catch(e){} }
+    fog.classList.remove('in'); fog.classList.add('out'); inv.style.scrollBehavior='';
+  }, 8000);
 }
 env.addEventListener('click', openEnvelope);
 env.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openEnvelope(); } });
